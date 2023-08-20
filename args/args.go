@@ -8,12 +8,16 @@ import (
 type SimpleCommandFunc func(args []SimpleArgument, options []SimpleOption)
 
 type SimpleCommand struct {
-	Name       string
-	Function   SimpleCommandFunc
-	subcommand *SimpleCommand
-	arguments  []*SimpleArgument
-	options    []*SimpleOption
-	parent     *SimpleCommand
+	Name        string
+	Function    SimpleCommandFunc
+	subcommands []*SimpleCommand
+	arguments   []*SimpleArgument
+	options     []*SimpleOption
+	parent      *SimpleCommand
+}
+
+func (c *SimpleCommand) Parent() *SimpleCommand {
+	return c.parent
 }
 
 func (c *SimpleCommand) RootCommand() *SimpleCommand {
@@ -30,23 +34,33 @@ func (c *SimpleCommand) RootCommand() *SimpleCommand {
 	}
 }
 
+/*
+Adds new subcommand which can be called
+*/
+//TODO: Support multiple subcommands?
 func (c *SimpleCommand) Subcommand(command *SimpleCommand) *SimpleCommand {
 	if c.arguments != nil {
 		log.Panicf("Cannot create subcommand '%s' of '%s' in combination with arguments.", command.Name, c.Name)
 	}
-	c.subcommand = command
-	c.subcommand.parent = c
+	command.parent = c
+	c.subcommands = append(c.subcommands, command)
 	return command
 }
 
+/*
+Adds new argument to command which is required to be entered
+*/
 func (c *SimpleCommand) Argument(argument *SimpleArgument) *SimpleCommand {
-	if c.subcommand != nil {
-		log.Panicf("Cannot add arguments in command '%s in combination with subcommand of '%s'", c.Name, c.subcommand.Name)
+	if len(c.subcommands) > 0 {
+		log.Panicf("Cannot add arguments in command '%s if subcommands exists", c.Name)
 	}
 	c.arguments = append(c.arguments, argument)
 	return c
 }
 
+/*
+Adds new option to command e.g. "--plain"
+*/
 func (c *SimpleCommand) Option(name string, arguments []*SimpleArgument) *SimpleCommand {
 	if c.options == nil {
 		c.options = []*SimpleOption{}
@@ -63,7 +77,7 @@ func (c *SimpleCommand) Option(name string, arguments []*SimpleArgument) *Simple
 }
 
 /*
-Executes function if exist on SimpleCommand
+Executes function if exist on command
 */
 func (c *SimpleCommand) Execute() {
 	if c.Function != nil {
@@ -71,7 +85,7 @@ func (c *SimpleCommand) Execute() {
 		var clonedOptions = make([]SimpleOption, 0)
 
 		for _, arg := range c.arguments {
-			if arg.value == "" {
+			if arg.Value == "" {
 				continue
 			}
 			clonedArguments = append(clonedArguments, *arg)
@@ -105,17 +119,15 @@ func (c *SimpleCommand) Parse(args []string) bool {
 
 	// Check if command matches else ignore
 	if c.Name != mutArgs[0] {
+		c.Help()
 		return false
 	}
 	mutArgs = mutArgs[1:]
 
 	// Check if subcommand match exists, switch to subcommand else ignore
-	if len(mutArgs) > 0 && c.subcommand != nil && c.subcommand.Name == mutArgs[0] {
-		c.subcommand.Parse(mutArgs)
-		c.Execute()
-		return true
-	}
+	c.parseSubcommand(mutArgs)
 
+	// Parse further args
 	mutArgs = c.parseArguments(mutArgs)
 	mutArgs = c.parseOptions(mutArgs)
 
@@ -128,6 +140,21 @@ func (c *SimpleCommand) Parse(args []string) bool {
 	return true
 }
 
+func (c *SimpleCommand) Help() {
+
+}
+
+func (c *SimpleCommand) parseSubcommand(mutArgs []string) {
+	for _, command := range c.subcommands {
+		if len(mutArgs) > 0 && command.Name == mutArgs[0] {
+			command.Parse(mutArgs)
+
+			//TODO: Should we execute command after subcommand parse?
+			c.Execute()
+		}
+	}
+}
+
 func (c *SimpleCommand) parseArguments(mutArgs []string) []string {
 	if c.arguments != nil && len(c.arguments) > 0 {
 		argsCount := len(c.arguments)
@@ -136,7 +163,7 @@ func (c *SimpleCommand) parseArguments(mutArgs []string) []string {
 		}
 		parseArguments := mutArgs[:argsCount]
 		for argIndex, arg := range c.arguments {
-			arg.value = parseArguments[argIndex]
+			arg.Value = parseArguments[argIndex]
 		}
 	}
 	mutArgs = mutArgs[len(c.arguments):]
@@ -157,7 +184,7 @@ func (c *SimpleCommand) parseOptions(mutArgs []string) []string {
 					for optionIndex, optionArg := range option.Arguments {
 						optionArgIndex := 1 + argIndex + optionIndex
 						if len(mutArgs) > optionArgIndex {
-							optionArg.value = mutArgs[optionArgIndex]
+							optionArg.Value = mutArgs[optionArgIndex]
 							removeIndexes = append(removeIndexes, optionArgIndex)
 						} else {
 							log.Panicf("Not enough arguments for option '%s' in command '%s'", option.Name, c.Name)
