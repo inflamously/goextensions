@@ -1,7 +1,6 @@
 package args
 
 import (
-	"fmt"
 	collections "github.com/inflamously/goextensions/collections"
 	"log"
 )
@@ -17,7 +16,10 @@ type SimpleCommand struct {
 	parent     *SimpleCommand
 }
 
-func (c *SimpleCommand) Root() *SimpleCommand {
+func (c *SimpleCommand) RootCommand() *SimpleCommand {
+	if c.parent == nil {
+		return c
+	}
 	var parent = c.parent
 	for {
 		if parent.parent != nil {
@@ -103,11 +105,6 @@ func (c *SimpleCommand) Parse(args []string) bool {
 	}
 	mutArgs = mutArgs[1:]
 
-	if len(mutArgs) <= 0 {
-		c.Execute()
-		return true
-	}
-
 	// Check if subcommand match exists, switch to subcommand else ignore
 	if len(mutArgs) > 0 && c.subcommand != nil && c.subcommand.Name == mutArgs[0] {
 		c.subcommand.Parse(mutArgs)
@@ -119,7 +116,7 @@ func (c *SimpleCommand) Parse(args []string) bool {
 	mutArgs = c.parseOptions(mutArgs)
 
 	if len(mutArgs) > 0 {
-		log.Printf("\nToo many parameters passed into command '%s' -> %s\n", c.Name, mutArgs)
+		log.Panicf("Too many parameters passed into command '%s' -> %s\n", c.Name, mutArgs)
 	}
 
 	c.Execute()
@@ -131,7 +128,7 @@ func (c *SimpleCommand) parseArguments(mutArgs []string) []string {
 	if c.arguments != nil && len(c.arguments) > 0 {
 		argsCount := len(c.arguments)
 		if argsCount > len(mutArgs) {
-			panic("Missing command arguments")
+			log.Panicf("Command '%s' is missing '%d' arguments", c.Name, argsCount)
 		}
 		parseArguments := mutArgs[:argsCount]
 		for argIndex, arg := range c.arguments {
@@ -154,7 +151,6 @@ func (c *SimpleCommand) parseOptions(mutArgs []string) []string {
 					option.parsed = true
 					removeIndexes = append(removeIndexes, argIndex)
 					for optionIndex, optionArg := range option.Arguments {
-						fmt.Printf("ArgIndex %d, OptionIndex %d, OptionArg %s, \n", argIndex, optionIndex, optionArg)
 						optionArgIndex := 1 + argIndex + optionIndex
 						if len(mutArgs) > optionArgIndex {
 							optionArg.value = mutArgs[optionArgIndex]
