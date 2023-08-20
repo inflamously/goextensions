@@ -12,6 +12,6 @@ func IsOption(arg string) bool {
 /*
 Create a new command
 */
-func NewCommand(command *SimpleCommand) *SimpleCommand {
+func CreateCommand(command *SimpleCommand) *SimpleCommand {
 	return command
 }
