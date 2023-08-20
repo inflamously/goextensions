@@ -99,6 +99,10 @@ Parse string array of arguments into SimpleCommand structure
 func (c *SimpleCommand) Parse(args []string) bool {
 	mutArgs := args
 
+	if mutArgs == nil || len(mutArgs) <= 0 {
+		log.Panicf("No arguments passed into command '%s'", c.Name)
+	}
+
 	// Check if command matches else ignore
 	if c.Name != mutArgs[0] {
 		return false
