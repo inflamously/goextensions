@@ -2,7 +2,7 @@ package args
 
 import (
 	"fmt"
-	"goextensions/collections"
+	collections "github.com/inflamously/goextensions/collections"
 	"log"
 )
 
