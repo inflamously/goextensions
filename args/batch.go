@@ -11,7 +11,7 @@ type SimpleCommandBatch struct {
 
 func (scb *SimpleCommandBatch) Parse(args []string) bool {
 	if len(scb.Commands) == 0 {
-		log.Panicf("No commands exists")
+		log.Panicf("SimpleCommandBatch cannot be empty")
 	}
 
 	for _, command := range scb.Commands {
