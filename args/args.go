@@ -21,6 +21,10 @@ func (c *SimpleCommand) Parent() *SimpleCommand {
 }
 
 func (c *SimpleCommand) RootCommand() *SimpleCommand {
+	if err := c.verify(); err != nil {
+		log.Panicf("Command failed due to '%s'", err)
+	}
+
 	if c.parent == nil {
 		return c
 	}
@@ -32,6 +36,10 @@ func (c *SimpleCommand) RootCommand() *SimpleCommand {
 			return parent
 		}
 	}
+}
+
+func (c *SimpleCommand) verify() error {
+	return nil
 }
 
 /*
@@ -114,12 +122,13 @@ func (c *SimpleCommand) Parse(args []string) bool {
 	mutArgs := args
 
 	if mutArgs == nil || len(mutArgs) <= 0 {
-		log.Panicf("No arguments passed into command '%s'", c.Name)
+		c.Help(args)
+		return false
 	}
 
 	// Check if command matches else ignore
 	if c.Name != mutArgs[0] {
-		c.Help()
+		c.Help(args)
 		return false
 	}
 	mutArgs = mutArgs[1:]
@@ -137,14 +146,28 @@ func (c *SimpleCommand) Parse(args []string) bool {
 		log.Panicf("Too many parameters passed into command '%s' -> %s\n", c.Name, mutArgs)
 	}
 
-	log.Printf("Executing command '%s' with args '%s'", c.Name, args[1:])
-	c.Execute()
+	if c.Function != nil {
+		log.Printf("Executing command '%s' with args '%s'", c.Name, args[1:])
+		c.Execute()
+	} else {
+		c.Help(mutArgs)
+		return false
+	}
 
 	return true
 }
 
-func (c *SimpleCommand) Help() {
+func (c *SimpleCommand) Help(args []string) {
+	if len(args) > 0 {
+		log.Printf("Command \"%s\" not found.\n", args)
+	} else {
+		log.Println("No command provided.")
+	}
 
+	log.Printf("Available subcommands for \"%s\":\n", c.Name)
+	for _, subcommand := range c.subcommands {
+		log.Printf("*\t\"%s\"", subcommand.Name)
+	}
 }
 
 func (c *SimpleCommand) parseSubcommand(mutArgs []string) bool {

@@ -14,8 +14,17 @@ func (scb *SimpleCommandBatch) Parse(args []string) bool {
 		log.Panicf("SimpleCommandBatch cannot be empty")
 	}
 
-	for _, command := range scb.Commands {
-		if command.Parse(args) {
+	if len(args) == 0 {
+		log.Printf("No command provided.")
+		log.Printf("Available commands:")
+		for _, c := range scb.Commands {
+			log.Printf("*\t\"%s\"", c.Name)
+		}
+		return false
+	}
+
+	for _, c := range scb.Commands {
+		if c.Parse(args) {
 			return true
 		}
 	}
