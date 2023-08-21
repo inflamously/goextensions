@@ -91,19 +91,20 @@ func TestCommand_ParseTags(t *testing.T) {
 			Function: func(args []SimpleArgument, options []SimpleOption) {
 				fmt.Printf("Running 'tags' command with args: %s \n", args)
 			},
-		}).
-		Option(
-			"--test",
-			[]*SimpleArgument{
-				{}, {},
-			}).
-		Subcommand(&SimpleCommand{
+		},
+	).Option(
+		"--test",
+		[]*SimpleArgument{
+			{}, {},
+		},
+	).Subcommand(
+		&SimpleCommand{
 			Name: "random",
 			Function: func(args []SimpleArgument, options []SimpleOption) {
 				fmt.Printf("Running 'random' command with args: %s \n", args)
 			},
-		}).
-		RootCommand()
+		},
+	).RootCommand()
 
 	for i := len(args); i > 0; i-- {
 		command.Parse(args[:i])

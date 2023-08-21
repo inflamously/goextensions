@@ -1,7 +1,7 @@
 package args
 
 import (
-	collections "github.com/inflamously/goextensions/collections"
+	"errors"
 	"log"
 )
 
@@ -16,72 +16,12 @@ type SimpleCommand struct {
 	parent      *SimpleCommand
 }
 
-func (c *SimpleCommand) Parent() *SimpleCommand {
-	return c.parent
-}
-
-func (c *SimpleCommand) RootCommand() *SimpleCommand {
-	if err := c.verify(); err != nil {
-		log.Panicf("Command failed due to '%s'", err)
-	}
-
-	if c.parent == nil {
-		return c
-	}
-	var parent = c.parent
-	for {
-		if parent.parent != nil {
-			parent = parent.parent
-		} else {
-			return parent
-		}
-	}
-}
-
 func (c *SimpleCommand) verify() error {
+	if c.Function != nil && len(c.subcommands) > 0 {
+		return errors.New("Cannot mix Function with Subcommand")
+	}
+
 	return nil
-}
-
-/*
-Adds new subcommand which can be called
-*/
-//TODO: Support multiple subcommands?
-func (c *SimpleCommand) Subcommand(command *SimpleCommand) *SimpleCommand {
-	if c.arguments != nil {
-		log.Panicf("Cannot create subcommand '%s' of '%s' in combination with arguments.", command.Name, c.Name)
-	}
-	command.parent = c
-	c.subcommands = append(c.subcommands, command)
-	return command
-}
-
-/*
-Adds new argument to command which is required to be entered
-*/
-func (c *SimpleCommand) Argument(argument *SimpleArgument) *SimpleCommand {
-	if len(c.subcommands) > 0 {
-		log.Panicf("Cannot add arguments in command '%s if subcommands exists", c.Name)
-	}
-	c.arguments = append(c.arguments, argument)
-	return c
-}
-
-/*
-Adds new option to command e.g. "--plain"
-*/
-func (c *SimpleCommand) Option(name string, arguments []*SimpleArgument) *SimpleCommand {
-	if c.options == nil {
-		c.options = []*SimpleOption{}
-	}
-	if IsOption(name) {
-		panic("Options must start with '--'")
-	}
-	option := SimpleOption{
-		Name:      name,
-		Arguments: arguments,
-	}
-	c.options = append(c.options, &option)
-	return c
 }
 
 /*
@@ -115,8 +55,35 @@ func (c *SimpleCommand) Execute() {
 	}
 }
 
+func (c *SimpleCommand) commandTreeString() string {
+	commandParent := c
+	commands := make([]string, 0)
+	for {
+		if commandParent == nil {
+			break
+		}
+		commands = append(commands, commandParent.Name)
+		commandParent = commandParent.parent
+	}
+
+	return ""
+}
+
+func (c *SimpleCommand) Help(args []string) {
+	if len(args) > 0 {
+		log.Printf("Command with args \"%s\" not found.\n", args)
+	} else {
+		log.Println("No command provided.")
+	}
+
+	log.Printf("Available subcommands for \"%s\":\n", c.commandTreeString())
+	for _, subcommand := range c.subcommands {
+		log.Printf("*\t\"%s\"", subcommand.Name)
+	}
+}
+
 /*
-Parse string array of arguments into SimpleCommand structure
+Parse given arguments and execute command
 */
 func (c *SimpleCommand) Parse(args []string) bool {
 	mutArgs := args
@@ -134,7 +101,7 @@ func (c *SimpleCommand) Parse(args []string) bool {
 	mutArgs = mutArgs[1:]
 
 	// Check if subcommand match exists, switch to subcommand else ignore
-	if c.parseSubcommand(mutArgs) {
+	if len(c.subcommands) > 0 && c.parseSubcommand(mutArgs) {
 		return true
 	}
 
@@ -151,79 +118,7 @@ func (c *SimpleCommand) Parse(args []string) bool {
 		c.Execute()
 	} else {
 		c.Help(mutArgs)
-		return false
 	}
 
 	return true
-}
-
-func (c *SimpleCommand) Help(args []string) {
-	if len(args) > 0 {
-		log.Printf("Command \"%s\" not found.\n", args)
-	} else {
-		log.Println("No command provided.")
-	}
-
-	log.Printf("Available subcommands for \"%s\":\n", c.Name)
-	for _, subcommand := range c.subcommands {
-		log.Printf("*\t\"%s\"", subcommand.Name)
-	}
-}
-
-func (c *SimpleCommand) parseSubcommand(mutArgs []string) bool {
-	for _, command := range c.subcommands {
-		if len(mutArgs) > 0 && command.Name == mutArgs[0] {
-			if command.Parse(mutArgs) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (c *SimpleCommand) parseArguments(mutArgs []string) []string {
-	if c.arguments != nil && len(c.arguments) > 0 {
-		argsCount := len(c.arguments)
-		if argsCount > len(mutArgs) {
-			log.Panicf("Command '%s' is missing '%d' arguments", c.Name, argsCount)
-		}
-		parseArguments := mutArgs[:argsCount]
-		for argIndex, arg := range c.arguments {
-			arg.Value = parseArguments[argIndex]
-		}
-	}
-	mutArgs = mutArgs[len(c.arguments):]
-	return mutArgs
-}
-
-func (c *SimpleCommand) parseOptions(mutArgs []string) []string {
-	var removeIndexes []int
-	if c.options != nil {
-		for _, option := range c.options {
-			for argIndex, arg := range mutArgs {
-				if IsOption(arg) {
-					continue
-				}
-				if arg == option.Name {
-					option.parsed = true
-					removeIndexes = append(removeIndexes, argIndex)
-					for optionIndex, optionArg := range option.Arguments {
-						optionArgIndex := 1 + argIndex + optionIndex
-						if len(mutArgs) > optionArgIndex {
-							optionArg.Value = mutArgs[optionArgIndex]
-							removeIndexes = append(removeIndexes, optionArgIndex)
-						} else {
-							log.Panicf("Not enough arguments for option '%s' in command '%s'", option.Name, c.Name)
-						}
-					}
-				}
-			}
-		}
-
-		min, max := collections.MinMaxInt(removeIndexes)
-		mutArgs = collections.SliceOutwards[string](mutArgs, min, max)
-	}
-
-	return mutArgs
 }
