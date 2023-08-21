@@ -125,7 +125,9 @@ func (c *SimpleCommand) Parse(args []string) bool {
 	mutArgs = mutArgs[1:]
 
 	// Check if subcommand match exists, switch to subcommand else ignore
-	c.parseSubcommand(mutArgs)
+	if c.parseSubcommand(mutArgs) {
+		return true
+	}
 
 	// Parse further args
 	mutArgs = c.parseArguments(mutArgs)
@@ -135,6 +137,7 @@ func (c *SimpleCommand) Parse(args []string) bool {
 		log.Panicf("Too many parameters passed into command '%s' -> %s\n", c.Name, mutArgs)
 	}
 
+	log.Printf("Executing command '%s' with args '%s'", c.Name, args[1:])
 	c.Execute()
 
 	return true
@@ -144,15 +147,16 @@ func (c *SimpleCommand) Help() {
 
 }
 
-func (c *SimpleCommand) parseSubcommand(mutArgs []string) {
+func (c *SimpleCommand) parseSubcommand(mutArgs []string) bool {
 	for _, command := range c.subcommands {
 		if len(mutArgs) > 0 && command.Name == mutArgs[0] {
-			command.Parse(mutArgs)
-
-			//TODO: Should we execute command after subcommand parse?
-			c.Execute()
+			if command.Parse(mutArgs) {
+				return true
+			}
 		}
 	}
+
+	return false
 }
 
 func (c *SimpleCommand) parseArguments(mutArgs []string) []string {
