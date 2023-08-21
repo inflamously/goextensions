@@ -8,6 +8,11 @@ func SliceOutwards[T any](slice []T, from int, to int) []T {
 	return append(slice[:from], slice[to+1:]...)
 }
 
+func Reverse[T any](slice []T) []T {
+	//TODO: Impl reverse algorithm
+	return make([]T, 0)
+}
+
 func MinMaxInt(slice []int) (int, int) {
 	if slice == nil || len(slice) == 0 {
 		panic("Slice cannot be empty!")
