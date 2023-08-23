@@ -8,9 +8,24 @@ func SliceOutwards[T any](slice []T, from int, to int) []T {
 	return append(slice[:from], slice[to+1:]...)
 }
 
-func Reverse[T any](slice []T) []T {
-	//TODO: Impl reverse algorithm
-	return make([]T, 0)
+/*
+Reverse slice inline
+*/
+func Reverse[T any](slice []T) {
+	if len(slice) < 2 {
+		return
+	}
+
+	var tmp T
+	for i, j := 0, len(slice)-1; i < len(slice); i, j = i+1, j-1 {
+		if i > j {
+			break
+		}
+
+		tmp = slice[i]
+		slice[i] = slice[j]
+		slice[j] = tmp
+	}
 }
 
 func MinMaxInt(slice []int) (int, int) {
