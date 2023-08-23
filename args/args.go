@@ -2,7 +2,9 @@ package args
 
 import (
 	"errors"
+	"github.com/inflamously/goextensions/collections"
 	"log"
+	"strings"
 )
 
 type SimpleCommandFunc func(args []SimpleArgument, options []SimpleOption)
@@ -51,7 +53,7 @@ func (c *SimpleCommand) Execute() {
 			clonedOptions = append(clonedOptions, newOption)
 		}
 
-		(c.Function)(clonedArguments, clonedOptions)
+		c.Function(clonedArguments, clonedOptions)
 	}
 }
 
@@ -66,7 +68,16 @@ func (c *SimpleCommand) commandTreeString() string {
 		commandParent = commandParent.parent
 	}
 
-	return ""
+	var commandTree strings.Builder
+	collections.Reverse(commands)
+	for i, c := range commands {
+		commandTree.WriteString(c)
+		if i < len(commands)-1 {
+			commandTree.WriteString(" ")
+		}
+	}
+
+	return commandTree.String()
 }
 
 func (c *SimpleCommand) Help(args []string) {
@@ -76,9 +87,13 @@ func (c *SimpleCommand) Help(args []string) {
 		log.Println("No command provided.")
 	}
 
-	log.Printf("Available subcommands for \"%s\":\n", c.commandTreeString())
-	for _, subcommand := range c.subcommands {
-		log.Printf("*\t\"%s\"", subcommand.Name)
+	if len(c.subcommands) > 0 {
+		log.Printf("Available subcommands for \"%s\":\n", c.commandTreeString())
+		for _, subcommand := range c.subcommands {
+			log.Printf("*\t\"%s\"", subcommand.Name)
+		}
+	} else {
+		log.Printf("No subcommands available for \"%s\"", c.commandTreeString())
 	}
 }
 
@@ -105,9 +120,19 @@ func (c *SimpleCommand) Parse(args []string) bool {
 		return true
 	}
 
-	// Parse further args
-	mutArgs = c.parseArguments(mutArgs)
-	mutArgs = c.parseOptions(mutArgs)
+	// Parse arguments
+	mutArgs, valid := c.parseArguments(mutArgs)
+	if !valid {
+		c.Help(mutArgs)
+		return false
+	}
+
+	// Parse options
+	mutArgs, valid = c.parseOptions(mutArgs)
+	if !valid {
+		c.Help(mutArgs)
+		return false
+	}
 
 	if len(mutArgs) > 0 {
 		log.Panicf("Too many parameters passed into command '%s' -> %s\n", c.Name, mutArgs)
